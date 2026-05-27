@@ -39,26 +39,50 @@ if (count.n === 0) {
     'INSERT INTO products (name, category, shelf_life_hours, sort_order) VALUES (?, ?, ?, ?)'
   );
   const items = [
-    ['Guacamole',           'Salsas & Sauces',  4,   1],
-    ['Pico de Gallo',       'Salsas & Sauces',  72,  2],
-    ['Salsa Roja',          'Salsas & Sauces',  72,  3],
-    ['Salsa Verde',         'Salsas & Sauces',  72,  4],
-    ['Queso',               'Salsas & Sauces',  4,   5],
-    ['Shredded Chicken',    'Proteins',         72,  6],
-    ['Carnitas',            'Proteins',         72,  7],
-    ['Ground Beef',         'Proteins',         48,  8],
-    ['Grilled Steak',       'Proteins',         72,  9],
-    ['Refried Beans',       'Sides',            72,  10],
-    ['Black Beans',         'Sides',            72,  11],
-    ['Spanish Rice',        'Sides',            72,  12],
-    ['Shredded Cheese',     'Sides',            168, 13],
-    ['Sour Cream',          'Sides',            168, 14],
-    ['Lettuce',             'Sides',            24,  15],
-    ['Diced Tomatoes',      'Sides',            48,  16],
-    ['Diced Onions',        'Sides',            48,  17],
-    ['Cilantro',            'Sides',            48,  18],
-    ['Sliced Jalapeños',    'Sides',            168, 19],
-    ['Tortilla Chips',      'Dry Goods',        24,  20],
+    // Salsas & Sauces
+    ['Pico de Gallo',               'Salsas & Sauces',  120,  1],
+    ['Salsa',                       'Salsas & Sauces',  168,  2],
+    ['Guacamole Thaw',              'Salsas & Sauces',  96,   3],
+    ['Guacamole Prepared',          'Salsas & Sauces',  24,   4],
+    ['Queso — Hot Well',            'Salsas & Sauces',  2,    5],
+    ['Queso — Refrigerated',        'Salsas & Sauces',  168,  6],
+    // Proteins
+    ['Chicken Tinga — Thawed',      'Proteins',         336,  7],
+    ['Chicken Tinga — Hot Well',    'Proteins',         4,    8],
+    ['Flank Steak — Thawed',        'Proteins',         336,  9],
+    ['Flank Steak — Hot Well',      'Proteins',         4,    10],
+    ['Green Chili Pork — Thawed',   'Proteins',         336,  11],
+    ['Green Chili Pork — Hot Well', 'Proteins',         4,    12],
+    ['Chicken Fajita — Thawed',     'Proteins',         120,  13],
+    ['Chicken Fajita — Hot Well',   'Proteins',         4,    14],
+    ['Barbacoa — Thawed',           'Proteins',         336,  15],
+    ['Barbacoa — Hot Well',         'Proteins',         4,    16],
+    // Sides
+    ['Corn',                        'Sides',            4,    17],
+    ['Rice',                        'Sides',            4,    18],
+    ['Fajita Mix',                  'Sides',            4,    19],
+    ['Fresh Made Fajita Mix',       'Sides',            120,  20],
+    ['Prepared Fajita Mix',         'Sides',            4,    21],
+    ['Mexican Street Corn — Hot Well','Sides',          2,    22],
+    ['Black Beans — Hot Well',      'Sides',            4,    23],
+    ['Black Beans — Refrigerated',  'Sides',            120,  24],
+    ['Mexican Beans — Hot Well',    'Sides',            4,    25],
+    ['Mexican Beans — Refrigerated','Sides',            120,  26],
+    // Produce
+    ['Lettuce',                     'Produce',          120,  27],
+    ['Cilantro',                    'Produce',          168,  28],
+    ['Limes',                       'Produce',          72,   29],
+    // Dairy
+    ['Cheddar Cheese',              'Dairy',            168,  30],
+    ['Oaxaca Cheese',               'Dairy',            168,  31],
+    ['Liquid Eggs',                 'Dairy',            96,   32],
+    ['Mexican Sour Cream',          'Dairy',            168,  33],
+    // Dressings
+    ['Jalapeño Ranch',              'Dressings',        168,  34],
+    ['Poblano Ranch',               'Dressings',        168,  35],
+    ['Chipotle Ranch',              'Dressings',        168,  36],
+    // Dry Goods
+    ['Tortilla Strips',             'Dry Goods',        336,  37],
   ];
   for (const item of items) insert.run(...item);
   console.log('Seeded default menu items.');
