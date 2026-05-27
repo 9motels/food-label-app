@@ -105,7 +105,40 @@ app.delete('/api/products/:id', (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// Print API
+// Printer helpers
+// ---------------------------------------------------------------------------
+const USB_PRINTERS = ['/dev/usb/lp0', '/dev/usb/lp1'];
+
+// Try to write ZPL to a single USB path. Returns true on success, false on any error.
+function tryPrintToPath(usbPath, zpl, copies) {
+  try {
+    if (!fs.existsSync(usbPath)) return { ok: false, error: 'Device not found' };
+    for (let i = 0; i < copies; i++) {
+      fs.writeFileSync(usbPath, zpl, { flag: 'a' });
+    }
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+}
+
+// Check which printers are currently reachable
+function getPrinterStatus() {
+  return USB_PRINTERS.map((p, i) => ({
+    id: i + 1,
+    path: p,
+    online: fs.existsSync(p),
+    name: `Printer ${i + 1}`
+  }));
+}
+
+// Printer status endpoint — called by UI on load and periodically
+app.get('/api/printers', (req, res) => {
+  res.json(getPrinterStatus());
+});
+
+// ---------------------------------------------------------------------------
+// Print API  — tries Printer 1 first, falls back to Printer 2 automatically
 // ---------------------------------------------------------------------------
 app.post('/api/print', (req, res) => {
   const { productId, productName, openedAt, expiresAt, copies = 1 } = req.body;
@@ -116,42 +149,47 @@ app.post('/api/print', (req, res) => {
 
   const zpl = buildZPL(productName, openedAt, expiresAt);
 
-  // Try printing — three methods in order of preference
-  let printed = false;
-  let errorMsg = '';
+  let usedPrinter = null;
+  let lastError = '';
 
-  // Method 1: write directly to USB device
-  const usbPaths = ['/dev/usb/lp0', '/dev/usb/lp1'];
-  for (const usbPath of usbPaths) {
-    try {
-      if (fs.existsSync(usbPath)) {
-        for (let i = 0; i < copies; i++) {
-          fs.appendFileSync(usbPath, zpl);
-        }
-        printed = true;
-        break;
-      }
-    } catch (e) {
-      errorMsg = e.message;
+  // Try each USB printer in order — first success wins
+  for (const usbPath of USB_PRINTERS) {
+    const result = tryPrintToPath(usbPath, zpl, copies);
+    if (result.ok) {
+      usedPrinter = usbPath;
+      break;
+    } else {
+      lastError = result.error;
+      console.warn(`Print failed on ${usbPath}: ${result.error} — trying next printer`);
     }
   }
 
-  // Method 2: lp command (CUPS)
-  if (!printed) {
+  // Last-resort fallback: CUPS lp command
+  if (!usedPrinter) {
     try {
+      const safeZpl = zpl.replace(/'/g, "'\\''");
       for (let i = 0; i < copies; i++) {
-        execSync(`echo '${zpl.replace(/'/g, "'\\''")}' | lp`, { timeout: 5000 });
+        execSync(`printf '%s' '${safeZpl}' | lp`, { timeout: 5000 });
       }
-      printed = true;
+      usedPrinter = 'cups';
     } catch (e) {
-      errorMsg = e.message;
+      lastError = e.message;
     }
   }
 
-  if (!printed) {
-    console.error('Print failed:', errorMsg);
-    return res.status(500).json({ error: 'Printer not reachable. Check USB connection.', details: errorMsg });
+  if (!usedPrinter) {
+    console.error('All printers failed. Last error:', lastError);
+    return res.status(500).json({
+      error: 'No printer available. Check that at least one printer is on and connected.',
+      details: lastError
+    });
   }
+
+  const printerNum = usedPrinter === 'cups' ? 'CUPS'
+    : usedPrinter === USB_PRINTERS[0] ? 'Printer 1'
+    : 'Printer 2 (failover)';
+
+  console.log(`Printed "${productName}" on ${printerNum}`);
 
   // Log the print
   if (productId) {
@@ -160,7 +198,7 @@ app.post('/api/print', (req, res) => {
     ).run(productId, productName, openedAt, expiresAt);
   }
 
-  res.json({ success: true });
+  res.json({ success: true, printer: printerNum });
 });
 
 // Print log

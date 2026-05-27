@@ -59,6 +59,32 @@
       border-radius: 8px;
     }
 
+    /* ---- Printer status bar ---- */
+    #printer-bar {
+      display: flex;
+      gap: 10px;
+      padding: 8px 16px;
+      background: #161b22;
+      border-bottom: 1px solid var(--border);
+      align-items: center;
+    }
+    #printer-bar .printer-dot {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--border);
+      flex-shrink: 0;
+    }
+    .dot.online  { background: #3fb950; }
+    .dot.offline { background: #da3633; }
+
     /* ---- Category filter ---- */
     #category-bar {
       display: flex;
@@ -265,8 +291,9 @@
       z-index: 200;
       white-space: nowrap;
     }
-    #toast.error { background: var(--danger); }
-    #toast.show  { transform: translateX(-50%) translateY(0); }
+    #toast.error   { background: var(--danger); }
+    #toast.warning { background: #9a6700; }
+    #toast.show    { transform: translateX(-50%) translateY(0); }
 
     /* ---- Empty state ---- */
     #empty {
@@ -285,6 +312,11 @@
   <span class="time-display" id="clock"></span>
   <a class="admin-link" href="/admin.html">Admin</a>
 </header>
+
+<div id="printer-bar">
+  <div class="printer-dot"><span class="dot" id="dot-1"></span><span id="label-1">Printer 1</span></div>
+  <div class="printer-dot"><span class="dot" id="dot-2"></span><span id="label-2">Printer 2</span></div>
+</div>
 
 <div id="category-bar"></div>
 
@@ -483,8 +515,16 @@
       });
 
       if (res.ok) {
+        const data = await res.json();
+        const failover = data.printer && data.printer.includes('failover');
         closeModal();
-        showToast(`✓ Printed ${copies > 1 ? copies + ' labels' : 'label'} for ${selectedProduct.name}`);
+        showToast(
+          failover
+            ? `✓ Printed on ${data.printer} (Printer 1 offline)`
+            : `✓ Printed ${copies > 1 ? copies + ' labels' : 'label'} for ${selectedProduct.name}`,
+          false,
+          failover
+        );
       } else {
         const err = await res.json();
         showToast('Print error: ' + (err.error || 'Unknown'), true);
@@ -499,15 +539,35 @@
 
   // ---- Toast ----
   let toastTimer;
-  function showToast(msg, isError = false) {
+  function showToast(msg, isError = false, isWarning = false) {
     const t = document.getElementById('toast');
     t.textContent = msg;
-    t.className = isError ? 'error' : '';
+    t.className = isError ? 'error' : isWarning ? 'warning' : '';
     void t.offsetWidth;
     t.classList.add('show');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+    toastTimer = setTimeout(() => t.classList.remove('show'), isWarning ? 5000 : 3000);
   }
+
+  // ---- Printer status ----
+  async function updatePrinterStatus() {
+    try {
+      const res = await fetch('/api/printers');
+      const printers = await res.json();
+      printers.forEach(p => {
+        const dot = document.getElementById(`dot-${p.id}`);
+        const label = document.getElementById(`label-${p.id}`);
+        if (dot) dot.className = 'dot ' + (p.online ? 'online' : 'offline');
+        if (label) label.textContent = p.online ? `${p.name} ●` : `${p.name} (offline)`;
+      });
+    } catch (e) {
+      // server unreachable — leave dots grey
+    }
+  }
+
+  // Check printer status on load and every 30 seconds
+  updatePrinterStatus();
+  setInterval(updatePrinterStatus, 30000);
 
   // ---- Init ----
   loadProducts();
