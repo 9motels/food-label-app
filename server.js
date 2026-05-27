@@ -266,6 +266,15 @@ function buildZPL(name, openedAt, expiresAt) {
 }
 
 // ---------------------------------------------------------------------------
+// Restart API — exits cleanly; systemd Restart=always brings it back in ~2s
+// ---------------------------------------------------------------------------
+app.post('/api/restart', (req, res) => {
+  res.json({ ok: true, message: 'Restarting...' });
+  console.log('Manual restart requested via UI');
+  setTimeout(() => process.exit(0), 800);
+});
+
+// ---------------------------------------------------------------------------
 // Start
 // ---------------------------------------------------------------------------
 app.listen(PORT, '0.0.0.0', () => {

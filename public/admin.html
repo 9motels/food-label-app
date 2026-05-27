@@ -163,6 +163,36 @@
     @media (max-width: 480px) {
       .form-row { grid-template-columns: 1fr; }
     }
+  
+    /* Restart card */
+    .restart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .restart-card .restart-info h2 { font-size: 1rem; font-weight: 700; margin-bottom: 4px; }
+    .restart-card .restart-info p  { font-size: 0.82rem; color: var(--muted); }
+    .btn-restart {
+      flex-shrink: 0;
+      padding: 10px 20px;
+      border-radius: 9px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .btn-restart:hover { border-color: var(--accent); background: #252c36; }
+    .btn-restart:disabled { opacity: 0.5; cursor: not-allowed; }
+
   </style>
 </head>
 <body>
@@ -174,7 +204,16 @@
 
 <main>
 
-  <!-- Add product -->
+  <!-- Restart app -->
+  <div class="restart-card">
+    <div class="restart-info">
+      <h2>🔄 Restart App</h2>
+      <p>If the app is behaving oddly, tap to restart it. Takes about 2–3 seconds.</p>
+    </div>
+    <button class="btn-restart" id="restart-btn">Restart</button>
+  </div>
+
+    <!-- Add product -->
   <div class="card">
     <h2>Add Product</h2>
     <div class="form-row">
@@ -411,6 +450,34 @@
   }
 
   loadProducts();
+
+  // ---- Restart ----
+  document.getElementById('restart-btn').onclick = async () => {
+    const btn = document.getElementById('restart-btn');
+    if (!confirm('Restart the app? It will be back in a few seconds.')) return;
+    btn.disabled = true;
+    btn.textContent = 'Restarting…';
+    try {
+      await fetch('/api/restart', { method: 'POST' });
+    } catch (e) { /* expected — server goes down */ }
+    // Poll until it comes back
+    const poll = setInterval(async () => {
+      try {
+        await fetch('/api/products');
+        clearInterval(poll);
+        btn.disabled = false;
+        btn.textContent = 'Restart';
+        showToast('App restarted successfully');
+      } catch (e) { /* still coming back up */ }
+    }, 1000);
+    // Give up after 30s
+    setTimeout(() => {
+      clearInterval(poll);
+      btn.disabled = false;
+      btn.textContent = 'Restart';
+    }, 30000);
+  };
+
 </script>
 </body>
 </html>
