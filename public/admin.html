@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin — Label Printer</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #111418;
+      --surface:   #1c2128;
+      --border:    #30363d;
+      --accent:    #e05c1a;
+      --accent2:   #f0893e;
+      --text:      #e6edf3;
+      --muted:     #7d8590;
+      --success:   #238636;
+      --danger:    #da3633;
+      --radius:    12px;
+    }
+
+    html, body {
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 14px 20px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    header h1 { font-size: 1.1rem; font-weight: 700; color: var(--accent2); flex: 1; }
+    header a {
+      font-size: 0.85rem;
+      color: var(--muted);
+      text-decoration: none;
+      padding: 6px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+
+    main { max-width: 700px; margin: 0 auto; padding: 20px 16px 60px; }
+
+    /* ---- Add product form ---- */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+    .card h2 { font-size: 1rem; font-weight: 700; margin-bottom: 16px; color: var(--text); }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .form-row.single { grid-template-columns: 1fr; }
+
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field label { font-size: 0.78rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .field input, .field select {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.95rem;
+      padding: 9px 11px;
+      width: 100%;
+      -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .shelf-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .shelf-row input { flex: 1; }
+    .shelf-row select { width: 110px; flex-shrink: 0; }
+
+    .btn { padding: 10px 20px; border-radius: 9px; border: none; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: opacity 0.15s; }
+    .btn:active { opacity: 0.7; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-danger  { background: var(--danger); color: #fff; padding: 6px 12px; font-size: 0.82rem; }
+    .btn-ghost   { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+
+    /* ---- Product list ---- */
+    #products-list { display: flex; flex-direction: column; gap: 10px; }
+
+    .product-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .product-item .pname { font-weight: 600; flex: 1; }
+    .product-item .pmeta { font-size: 0.82rem; color: var(--muted); }
+    .product-item .pcat  { font-size: 0.78rem; color: var(--muted); background: #2a3138; border-radius: 6px; padding: 2px 8px; }
+
+    .product-item .actions { display: flex; gap: 8px; }
+
+    /* Inline edit form */
+    .edit-form {
+      display: none;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      margin-top: 8px;
+      grid-column: 1 / -1;
+    }
+    .edit-form.open { display: block; }
+
+    /* Category group headers */
+    .cat-header {
+      font-size: 0.78rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 10px 4px 4px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 6px;
+      margin-top: 12px;
+    }
+
+    /* Toast */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--success);
+      color: #fff;
+      padding: 11px 22px;
+      border-radius: 28px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      transition: transform 0.3s;
+      z-index: 200;
+      white-space: nowrap;
+    }
+    #toast.error { background: var(--danger); }
+    #toast.show  { transform: translateX(-50%) translateY(0); }
+
+    @media (max-width: 480px) {
+      .form-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>⚙️ Admin — Products</h1>
+  <a href="/">← Station</a>
+</header>
+
+<main>
+
+  <!-- Add product -->
+  <div class="card">
+    <h2>Add Product</h2>
+    <div class="form-row">
+      <div class="field">
+        <label>Product Name</label>
+        <input type="text" id="new-name" placeholder="e.g. Guacamole" />
+      </div>
+      <div class="field">
+        <label>Category</label>
+        <input type="text" id="new-category" placeholder="e.g. Salsas & Sauces" list="cat-list" />
+        <datalist id="cat-list"></datalist>
+      </div>
+    </div>
+    <div class="form-row single">
+      <div class="field">
+        <label>Shelf Life</label>
+        <div class="shelf-row">
+          <input type="number" id="new-shelf-value" placeholder="4" min="0.5" step="0.5" />
+          <select id="new-shelf-unit">
+            <option value="hours">Hours</option>
+            <option value="days">Days</option>
+            <option value="minutes">Minutes</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <button class="btn btn-primary" id="add-btn">Add Product</button>
+  </div>
+
+  <!-- Product list -->
+  <div class="card">
+    <h2>Current Products (<span id="product-count">0</span>)</h2>
+    <div id="products-list"></div>
+  </div>
+
+</main>
+
+<div id="toast"></div>
+
+<script>
+  let products = [];
+
+  async function loadProducts() {
+    const res = await fetch('/api/products');
+    products = await res.json();
+    renderList();
+    updateCatList();
+    document.getElementById('product-count').textContent = products.length;
+  }
+
+  function shelfLifeHours(value, unit) {
+    if (unit === 'minutes') return value / 60;
+    if (unit === 'days') return value * 24;
+    return value;
+  }
+
+  function hoursToDisplay(h) {
+    if (h < 1) return `${Math.round(h * 60)} min`;
+    if (h < 24) return `${h % 1 === 0 ? h : h.toFixed(1)} hr`;
+    const d = h / 24;
+    return `${d % 1 === 0 ? d : d.toFixed(1)} day${d !== 1 ? 's' : ''}`;
+  }
+
+  function updateCatList() {
+    const cats = [...new Set(products.map(p => p.category))].sort();
+    const dl = document.getElementById('cat-list');
+    dl.innerHTML = cats.map(c => `<option value="${c}">`).join('');
+  }
+
+  function renderList() {
+    const list = document.getElementById('products-list');
+    list.innerHTML = '';
+
+    if (products.length === 0) {
+      list.innerHTML = '<p style="color:var(--muted);padding:12px 0">No products yet. Add one above.</p>';
+      return;
+    }
+
+    // Group by category
+    const groups = {};
+    products.forEach(p => {
+      if (!groups[p.category]) groups[p.category] = [];
+      groups[p.category].push(p);
+    });
+
+    Object.keys(groups).sort().forEach(cat => {
+      const header = document.createElement('div');
+      header.className = 'cat-header';
+      header.textContent = cat;
+      list.appendChild(header);
+
+      groups[cat].forEach(product => {
+        const item = document.createElement('div');
+        item.className = 'product-item';
+        item.dataset.id = product.id;
+        item.innerHTML = `
+          <div style="flex:1">
+            <div class="pname">${product.name}</div>
+            <div class="pmeta">${hoursToDisplay(product.shelf_life_hours)}</div>
+          </div>
+          <div class="actions">
+            <button class="btn btn-ghost" onclick="toggleEdit(${product.id}, this)">Edit</button>
+            <button class="btn btn-danger" onclick="deleteProduct(${product.id})">Delete</button>
+          </div>
+        `;
+
+        // Inline edit form
+        const editForm = document.createElement('div');
+        editForm.className = 'edit-form';
+        editForm.id = `edit-${product.id}`;
+
+        // Determine display unit
+        const displayHours = product.shelf_life_hours;
+        let dispVal, dispUnit;
+        if (displayHours < 1) { dispVal = displayHours * 60; dispUnit = 'minutes'; }
+        else if (displayHours >= 24 && displayHours % 24 === 0) { dispVal = displayHours / 24; dispUnit = 'days'; }
+        else { dispVal = displayHours; dispUnit = 'hours'; }
+
+        editForm.innerHTML = `
+          <div class="form-row">
+            <div class="field">
+              <label>Name</label>
+              <input type="text" id="edit-name-${product.id}" value="${product.name}" />
+            </div>
+            <div class="field">
+              <label>Category</label>
+              <input type="text" id="edit-cat-${product.id}" value="${product.category}" list="cat-list" />
+            </div>
+          </div>
+          <div class="form-row single" style="margin-bottom:12px">
+            <div class="field">
+              <label>Shelf Life</label>
+              <div class="shelf-row">
+                <input type="number" id="edit-shelf-val-${product.id}" value="${dispVal}" min="0.5" step="0.5" />
+                <select id="edit-shelf-unit-${product.id}">
+                  <option value="hours" ${dispUnit==='hours'?'selected':''}>Hours</option>
+                  <option value="days" ${dispUnit==='days'?'selected':''}>Days</option>
+                  <option value="minutes" ${dispUnit==='minutes'?'selected':''}>Minutes</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-primary" onclick="saveEdit(${product.id})">Save</button>
+            <button class="btn btn-ghost" onclick="toggleEdit(${product.id})">Cancel</button>
+          </div>
+        `;
+
+        const wrapper = document.createElement('div');
+        wrapper.appendChild(item);
+        wrapper.appendChild(editForm);
+        list.appendChild(wrapper);
+      });
+    });
+  }
+
+  function toggleEdit(id, btn) {
+    const form = document.getElementById(`edit-${id}`);
+    const isOpen = form.classList.contains('open');
+    // Close all others
+    document.querySelectorAll('.edit-form.open').forEach(f => f.classList.remove('open'));
+    document.querySelectorAll('.btn-ghost[onclick^="toggleEdit"]').forEach(b => b.textContent = 'Edit');
+    if (!isOpen) {
+      form.classList.add('open');
+      if (btn) btn.textContent = 'Cancel';
+    }
+  }
+
+  async function saveEdit(id) {
+    const name = document.getElementById(`edit-name-${id}`).value.trim();
+    const category = document.getElementById(`edit-cat-${id}`).value.trim();
+    const shelfVal = parseFloat(document.getElementById(`edit-shelf-val-${id}`).value);
+    const shelfUnit = document.getElementById(`edit-shelf-unit-${id}`).value;
+
+    if (!name || !shelfVal) return showToast('Name and shelf life required', true);
+
+    const shelf_life_hours = shelfLifeHours(shelfVal, shelfUnit);
+    await fetch(`/api/products/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, category: category || 'General', shelf_life_hours })
+    });
+    showToast(`Saved: ${name}`);
+    loadProducts();
+  }
+
+  async function deleteProduct(id) {
+    const product = products.find(p => p.id === id);
+    if (!confirm(`Delete "${product?.name}"?`)) return;
+    await fetch(`/api/products/${id}`, { method: 'DELETE' });
+    showToast('Product deleted');
+    loadProducts();
+  }
+
+  // Add product
+  document.getElementById('add-btn').onclick = async () => {
+    const name = document.getElementById('new-name').value.trim();
+    const category = document.getElementById('new-category').value.trim();
+    const shelfVal = parseFloat(document.getElementById('new-shelf-value').value);
+    const shelfUnit = document.getElementById('new-shelf-unit').value;
+
+    if (!name || !shelfVal) return showToast('Name and shelf life required', true);
+
+    const shelf_life_hours = shelfLifeHours(shelfVal, shelfUnit);
+    await fetch('/api/products', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, category: category || 'General', shelf_life_hours })
+    });
+
+    document.getElementById('new-name').value = '';
+    document.getElementById('new-shelf-value').value = '';
+    showToast(`Added: ${name}`);
+    loadProducts();
+  };
+
+  // Allow Enter key on add form
+  ['new-name', 'new-category', 'new-shelf-value'].forEach(id => {
+    document.getElementById(id).addEventListener('keydown', e => {
+      if (e.key === 'Enter') document.getElementById('add-btn').click();
+    });
+  });
+
+  // Toast
+  let toastTimer;
+  function showToast(msg, isError = false) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = isError ? 'error' : '';
+    void t.offsetWidth;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+  }
+
+  loadProducts();
+</script>
+</body>
+</html>

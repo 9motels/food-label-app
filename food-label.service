@@ -1,0 +1,17 @@
+[Unit]
+Description=Food Label Printer App
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/food-label-app
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+Environment=PORT=3000
+
+[Install]
+WantedBy=multi-user.target

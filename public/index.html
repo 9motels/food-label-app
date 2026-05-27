@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Label Printer</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #111418;
+      --surface:   #1c2128;
+      --border:    #30363d;
+      --accent:    #e05c1a;
+      --accent2:   #f0893e;
+      --text:      #e6edf3;
+      --muted:     #7d8590;
+      --success:   #238636;
+      --danger:    #da3633;
+      --radius:    14px;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ---- Header ---- */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    header h1 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--accent2);
+    }
+    header .time-display {
+      font-size: 0.95rem;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+    header a.admin-link {
+      font-size: 0.85rem;
+      color: var(--muted);
+      text-decoration: none;
+      padding: 6px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+
+    /* ---- Category filter ---- */
+    #category-bar {
+      display: flex;
+      gap: 8px;
+      padding: 12px 16px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+    #category-bar::-webkit-scrollbar { display: none; }
+    .cat-btn {
+      flex-shrink: 0;
+      padding: 7px 14px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .cat-btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+      font-weight: 600;
+    }
+
+    /* ---- Product grid ---- */
+    #product-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 12px;
+      padding: 16px;
+    }
+
+    .product-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 12px;
+      text-align: center;
+      cursor: pointer;
+      transition: transform 0.12s, border-color 0.12s, background 0.12s;
+      user-select: none;
+    }
+    .product-card:active {
+      transform: scale(0.96);
+      background: #252c36;
+      border-color: var(--accent);
+    }
+    .product-card .card-name {
+      font-size: 1rem;
+      font-weight: 600;
+      line-height: 1.3;
+      margin-bottom: 6px;
+    }
+    .product-card .card-shelf {
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    /* ---- Modal overlay ---- */
+    #modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 100;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    #modal-overlay.open {
+      display: flex;
+    }
+
+    #modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius) var(--radius) 0 0;
+      padding: 24px 20px 36px;
+      width: 100%;
+      max-width: 480px;
+      animation: slideUp 0.22s ease-out;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(60px); opacity: 0; }
+      to   { transform: translateY(0);    opacity: 1; }
+    }
+
+    #modal h2 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin-bottom: 18px;
+      color: var(--accent2);
+    }
+
+    .time-row {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 14px;
+    }
+    .time-row label {
+      font-size: 0.8rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .time-row input[type="datetime-local"] {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-size: 1rem;
+      padding: 10px 12px;
+      width: 100%;
+      -webkit-appearance: none;
+    }
+    .time-row input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .copies-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin: 16px 0 22px;
+    }
+    .copies-row label {
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+    .copies-row .stepper {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .stepper button {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 1.2rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .stepper span {
+      font-size: 1.1rem;
+      font-weight: 700;
+      min-width: 24px;
+      text-align: center;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+    }
+    .btn {
+      flex: 1;
+      padding: 15px;
+      border-radius: 12px;
+      border: none;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn:active { opacity: 0.8; }
+    .btn-cancel {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+    .btn-print {
+      background: var(--accent);
+      color: #fff;
+      font-size: 1.1rem;
+    }
+    .btn-print:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* ---- Toast ---- */
+    #toast {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--success);
+      color: #fff;
+      padding: 12px 24px;
+      border-radius: 30px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      transition: transform 0.3s ease;
+      z-index: 200;
+      white-space: nowrap;
+    }
+    #toast.error { background: var(--danger); }
+    #toast.show  { transform: translateX(-50%) translateY(0); }
+
+    /* ---- Empty state ---- */
+    #empty {
+      display: none;
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--muted);
+    }
+    #empty p { font-size: 1rem; margin-top: 8px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🌮 Label Printer</h1>
+  <span class="time-display" id="clock"></span>
+  <a class="admin-link" href="/admin.html">Admin</a>
+</header>
+
+<div id="category-bar"></div>
+
+<div id="product-grid"></div>
+<div id="empty">
+  <strong>No products yet</strong>
+  <p>Go to Admin to add your menu items.</p>
+</div>
+
+<!-- Print modal -->
+<div id="modal-overlay">
+  <div id="modal">
+    <h2 id="modal-title">Product Name</h2>
+
+    <div class="time-row">
+      <label>Opened At</label>
+      <input type="datetime-local" id="opened-input" />
+    </div>
+    <div class="time-row">
+      <label>Expires At</label>
+      <input type="datetime-local" id="expires-input" />
+    </div>
+
+    <div class="copies-row">
+      <label>Copies</label>
+      <div class="stepper">
+        <button id="copies-down">−</button>
+        <span id="copies-val">1</span>
+        <button id="copies-up">+</button>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-cancel" id="modal-cancel">Cancel</button>
+      <button class="btn btn-print" id="modal-print">🖨️ Print Label</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+  // ---- Clock ----
+  function updateClock() {
+    const now = new Date();
+    document.getElementById('clock').textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+  updateClock();
+  setInterval(updateClock, 10000);
+
+  // ---- State ----
+  let allProducts = [];
+  let activeCategory = 'All';
+  let selectedProduct = null;
+  let copies = 1;
+
+  // ---- Helpers ----
+  function toDatetimeLocal(date) {
+    const pad = n => String(n).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  }
+
+  function formatForLabel(dtLocalString) {
+    const d = new Date(dtLocalString);
+    return d.toLocaleString([], {
+      month: 'numeric', day: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    });
+  }
+
+  function shelfLifeLabel(hours) {
+    if (hours < 1) return `${Math.round(hours * 60)} min`;
+    if (hours < 24) return `${hours % 1 === 0 ? hours : hours.toFixed(1)} hr`;
+    const days = hours / 24;
+    return `${days % 1 === 0 ? days : days.toFixed(1)} day${days !== 1 ? 's' : ''}`;
+  }
+
+  // ---- Load products ----
+  async function loadProducts() {
+    const res = await fetch('/api/products');
+    allProducts = await res.json();
+    renderCategories();
+    renderGrid();
+  }
+
+  function renderCategories() {
+    const categories = ['All', ...new Set(allProducts.map(p => p.category))];
+    const bar = document.getElementById('category-bar');
+    bar.innerHTML = '';
+    categories.forEach(cat => {
+      const btn = document.createElement('button');
+      btn.className = 'cat-btn' + (cat === activeCategory ? ' active' : '');
+      btn.textContent = cat;
+      btn.onclick = () => {
+        activeCategory = cat;
+        document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderGrid();
+      };
+      bar.appendChild(btn);
+    });
+  }
+
+  function renderGrid() {
+    const grid = document.getElementById('product-grid');
+    const empty = document.getElementById('empty');
+    const filtered = activeCategory === 'All'
+      ? allProducts
+      : allProducts.filter(p => p.category === activeCategory);
+
+    if (filtered.length === 0) {
+      grid.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+    grid.innerHTML = '';
+    filtered.forEach(product => {
+      const card = document.createElement('div');
+      card.className = 'product-card';
+      card.innerHTML = `
+        <div class="card-name">${product.name}</div>
+        <div class="card-shelf">${shelfLifeLabel(product.shelf_life_hours)}</div>
+      `;
+      card.onclick = () => openModal(product);
+      grid.appendChild(card);
+    });
+  }
+
+  // ---- Modal ----
+  function openModal(product) {
+    selectedProduct = product;
+    copies = 1;
+    document.getElementById('copies-val').textContent = '1';
+
+    const now = new Date();
+    const expires = new Date(now.getTime() + product.shelf_life_hours * 3600000);
+
+    document.getElementById('modal-title').textContent = product.name;
+    document.getElementById('opened-input').value = toDatetimeLocal(now);
+    document.getElementById('expires-input').value = toDatetimeLocal(expires);
+    document.getElementById('modal-overlay').classList.add('open');
+  }
+
+  document.getElementById('modal-cancel').onclick = closeModal;
+  document.getElementById('modal-overlay').onclick = e => {
+    if (e.target === document.getElementById('modal-overlay')) closeModal();
+  };
+
+  function closeModal() {
+    document.getElementById('modal-overlay').classList.remove('open');
+    selectedProduct = null;
+  }
+
+  // Copies stepper
+  document.getElementById('copies-down').onclick = () => {
+    if (copies > 1) { copies--; document.getElementById('copies-val').textContent = copies; }
+  };
+  document.getElementById('copies-up').onclick = () => {
+    if (copies < 9) { copies++; document.getElementById('copies-val').textContent = copies; }
+  };
+
+  // When opened time changes, recalculate expiry
+  document.getElementById('opened-input').addEventListener('change', () => {
+    if (!selectedProduct) return;
+    const opened = new Date(document.getElementById('opened-input').value);
+    const expires = new Date(opened.getTime() + selectedProduct.shelf_life_hours * 3600000);
+    document.getElementById('expires-input').value = toDatetimeLocal(expires);
+  });
+
+  // ---- Print ----
+  document.getElementById('modal-print').onclick = async () => {
+    const btn = document.getElementById('modal-print');
+    const openedVal = document.getElementById('opened-input').value;
+    const expiresVal = document.getElementById('expires-input').value;
+
+    if (!openedVal || !expiresVal) {
+      showToast('Please set opened and expires times', true);
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Printing…';
+
+    try {
+      const res = await fetch('/api/print', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productId:   selectedProduct.id,
+          productName: selectedProduct.name,
+          openedAt:    formatForLabel(openedVal),
+          expiresAt:   formatForLabel(expiresVal),
+          copies
+        })
+      });
+
+      if (res.ok) {
+        closeModal();
+        showToast(`✓ Printed ${copies > 1 ? copies + ' labels' : 'label'} for ${selectedProduct.name}`);
+      } else {
+        const err = await res.json();
+        showToast('Print error: ' + (err.error || 'Unknown'), true);
+      }
+    } catch (e) {
+      showToast('Could not reach printer server', true);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '🖨️ Print Label';
+    }
+  };
+
+  // ---- Toast ----
+  let toastTimer;
+  function showToast(msg, isError = false) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = isError ? 'error' : '';
+    void t.offsetWidth;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+  }
+
+  // ---- Init ----
+  loadProducts();
+</script>
+</body>
+</html>
