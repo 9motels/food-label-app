@@ -1,164 +1,171 @@
-# Food Label App 🌮
+# Food Label App
 
-Replaces Jolt. Runs on a Raspberry Pi connected to a Zebra label printer.
-Staff use any tablet or phone on the same WiFi to print prep labels.
+Food prep label printer for Mexican restaurants — replaces Jolt ($100/month).
 
-**Cost: $0/month** (vs Jolt's $100/month)
+**Cost: $0/month** (Vercel free tier + Turso free tier)
 
----
-
-## What it does
-
-- Staff tap a product on their iPad/tablet → expiration auto-calculates → one tap to print
-- Labels show: product name, opened time, expires time
-- Admin panel to manage products and shelf lives
-- Pre-loaded with common Mexican restaurant items
+**Stack:** Vercel (hosting) + Turso (cloud SQLite) + Zebra Browser Print (USB bridge on the tablet)
 
 ---
 
-## Raspberry Pi Setup
+## Architecture
 
-### 1. Install Node.js
-
-```bash
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-sudo apt-get install -y nodejs
+```
+┌──────────────────────────────────┐
+│  Vercel (HTTPS)                  │
+│  - public/index.html  (station)  │
+│  - public/admin.html  (admin)    │
+│  - api/products.js    (CRUD)     │
+└───────────────┬──────────────────┘
+                │ products stored in Turso
+┌───────────────▼──────────────────┐
+│  Android Tablet (local WiFi)     │
+│  Chrome + Zebra Browser Print    │
+│  (Browser Print runs HTTPS on    │
+│   localhost:9101, bridges to USB)│
+└───────────────┬──────────────────┘
+          USB x 2
+    ┌────────────┴────────────┐
+ Zebra ZD410 #1          Zebra ZD410 #2
 ```
 
-Verify: `node --version` (should show v18+)
+---
 
-### 2. Clone the app
+## First-Time Setup
+
+### 1. Create a Turso database
 
 ```bash
-cd ~
-git clone https://github.com/9motels/food-label-app.git
+# Install Turso CLI
+curl -sSfL https://get.tur.so/install.sh | bash
+
+turso auth login
+turso db create food-label-app
+turso db show food-label-app           # copy the libsql:// URL
+turso db tokens create food-label-app  # copy the auth token
+```
+
+### 2. Deploy to Vercel
+
+```bash
 cd food-label-app
 npm install
+npx vercel --prod
 ```
 
-### 3. Connect the Zebra printer
+Choose **Other** when asked about framework preset.
 
-Plug the Zebra into the Pi via USB. Verify it shows up:
+### 3. Add environment variables
 
-```bash
-ls /dev/usb/
-# Should show: lp0
-```
+In the Vercel dashboard → your project → Settings → Environment Variables:
 
-Give the app permission to write to it:
+| Key | Value |
+|-----|-------|
+| `TURSO_DATABASE_URL` | `libsql://food-label-app-xxxx.turso.io` |
+| `TURSO_AUTH_TOKEN`   | the token from step 1 |
 
-```bash
-sudo usermod -a -G lp pi
-# Log out and back in, or reboot
-```
+After adding them, redeploy: `npx vercel --prod`
 
-Test the printer with a raw ZPL command:
+The database schema and all 37 default products are created automatically on first use.
 
-```bash
-printf '^XA^FO50,50^A0N,50,50^FDTest Label^FS^XZ' > /dev/usb/lp0
-```
+### 4. Set up the Android tablet
 
-If a label prints, you're good. If not, see Troubleshooting below.
+1. Install **Zebra Browser Print** from the Google Play Store (free, by Zebra Technologies)
+2. Open the app — it starts automatically and shows "Service Running"
+3. Open **Chrome** on the tablet and go to: `https://localhost:9101`
+4. Tap **Advanced → Proceed to localhost** to trust the self-signed certificate — this is a one-time step
+5. Navigate to your Vercel URL (e.g. `https://food-label-app.vercel.app`)
+6. Add it to the home screen: Chrome menu → "Add to Home screen"
 
-### 4. Set the app to auto-start on boot
+### 5. Test a print
 
-```bash
-sudo cp ~/food-label-app/food-label.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable food-label
-sudo systemctl start food-label
-```
-
-Check it's running:
-
-```bash
-sudo systemctl status food-label
-```
-
-### 5. Find the Pi's IP address
-
-```bash
-hostname -I
-# Example output: 192.168.1.42
-```
-
-Write this down — staff will use it to access the app.
-**Tip:** Set a static IP in your router's DHCP settings so this never changes.
-
-### 6. Access the app
-
-From any device on the same WiFi:
-
-- **Station view (staff):** `http://192.168.1.42:3000`
-- **Admin panel:** `http://192.168.1.42:3000/admin.html`
-
-Or if mDNS is enabled on your network: `http://raspberrypi.local:3000`
+- Connect both Zebra printers via USB to the tablet
+- The green dots in the status bar should show printer names
+- Tap any product → tap **🖨️ Print Label**
 
 ---
 
-## Label size
+## Daily Use
 
-Default labels are designed for **2" × 2"** stock at 203 dpi.
+**Station view** (`/`) — staff tap a product, confirm the opened/expires times, print.
 
-To adjust for a different size, edit `buildZPL()` in `server.js`:
-- `^PW` = print width in dots (203 dots per inch)
-- `^LL` = label length in dots
+**Admin view** (`/admin.html`) — add, edit, or delete products. Changes are instant.
 
-Common sizes:
+---
+
+## Label Format
+
+2" × 2" at 203 dpi (ZD410 default stock).
+
+```
+┌─────────────────────┐
+│  Pico de Gallo      │
+├─────────────────────┤
+│  Opened:  5/27 2:30p│
+│  Expires: 5/30 2:30p│
+├─────────────────────┤
+│  See bottom label   │
+│  for allergens      │
+└─────────────────────┘
+```
+
+To change label size, update `^PW` and `^LL` in `buildZPL()` in `public/index.html`:
+
 | Size    | PW  | LL  |
 |---------|-----|-----|
 | 2" × 1" | 406 | 203 |
 | 2" × 2" | 406 | 406 |
 | 2" × 4" | 406 | 812 |
-| 4" × 2" | 812 | 406 |
+
+---
+
+## Printer Failover
+
+The app calls `BrowserPrint.getLocalDevices()` and tries each USB printer in order. If Printer 1 fails, it falls back to Printer 2 automatically.
 
 ---
 
 ## Troubleshooting
 
-**Printer not printing / `/dev/usb/lp0` not found**
+**"Browser Print not running" in the status bar**
+→ Open the Zebra Browser Print app on the tablet. Then visit `https://localhost:9101` in Chrome and accept the cert (if you haven't already).
 
-1. Check the USB cable is firmly connected
-2. Try a different USB port on the Pi
-3. Run `dmesg | grep usb` to see if the Pi detects the printer
-4. If you see the printer in `dmesg` but not in `/dev/usb/`, try: `sudo modprobe usblp`
+**Printers show in status bar but nothing prints**
+→ Check USB cables. Power-cycle the printer. Make sure the printer is not in an error state (no flashing lights).
 
-**Permission denied writing to /dev/usb/lp0**
-
-```bash
-sudo chmod 666 /dev/usb/lp0
-# Or add pi to the lp group (see step 3)
-```
-
-**App won't start**
-
-```bash
-sudo journalctl -u food-label -n 50
-```
-
-**App starts but can't reach from iPad**
-
-- Make sure iPad and Pi are on the same WiFi network
-- Check the Pi's firewall: `sudo ufw status` — if active, allow port 3000:
-  ```bash
-  sudo ufw allow 3000
-  ```
+**Products not loading**
+→ Check the Vercel dashboard for function errors. Verify `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` are set in Vercel environment variables.
 
 ---
 
 ## Updating the app
 
 ```bash
-cd ~/food-label-app
-git pull
+cd food-label-app
+# make changes
+npx vercel --prod
+```
+
+Product data lives in Turso and is unaffected by redeployments.
+
+---
+
+## Development
+
+```bash
 npm install
-sudo systemctl restart food-label
+npx vercel dev
+```
+
+Create a `.env.local` file with your Turso credentials for local API routes:
+
+```
+TURSO_DATABASE_URL=libsql://your-db.turso.io
+TURSO_AUTH_TOKEN=your-token
 ```
 
 ---
 
-## Ethernet (recommended)
+## Legacy (Raspberry Pi)
 
-For maximum reliability, plug the Pi directly into your router with an ethernet cable.
-This eliminates any WiFi issues for the Pi-to-printer connection. Staff tablets
-still use WiFi normally to reach the app.
+The original Pi-based version using direct USB writes (`/dev/usb/lp0`) is preserved in `server.js` and `food-label.service` for reference.

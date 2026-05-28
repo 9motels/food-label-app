@@ -50,7 +50,6 @@
 
     main { max-width: 700px; margin: 0 auto; padding: 20px 16px 60px; }
 
-    /* ---- Add product form ---- */
     .card {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -113,7 +112,6 @@
     }
     .product-item .pname { font-weight: 600; flex: 1; }
     .product-item .pmeta { font-size: 0.82rem; color: var(--muted); }
-    .product-item .pcat  { font-size: 0.78rem; color: var(--muted); background: #2a3138; border-radius: 6px; padding: 2px 8px; }
 
     .product-item .actions { display: flex; gap: 8px; }
 
@@ -125,7 +123,6 @@
       border-radius: var(--radius);
       padding: 14px;
       margin-top: 8px;
-      grid-column: 1 / -1;
     }
     .edit-form.open { display: block; }
 
@@ -163,36 +160,6 @@
     @media (max-width: 480px) {
       .form-row { grid-template-columns: 1fr; }
     }
-  
-    /* Restart card */
-    .restart-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 20px;
-      margin-bottom: 24px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-    }
-    .restart-card .restart-info h2 { font-size: 1rem; font-weight: 700; margin-bottom: 4px; }
-    .restart-card .restart-info p  { font-size: 0.82rem; color: var(--muted); }
-    .btn-restart {
-      flex-shrink: 0;
-      padding: 10px 20px;
-      border-radius: 9px;
-      border: 1px solid var(--border);
-      background: var(--bg);
-      color: var(--text);
-      font-size: 0.9rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: border-color 0.15s, background 0.15s;
-    }
-    .btn-restart:hover { border-color: var(--accent); background: #252c36; }
-    .btn-restart:disabled { opacity: 0.5; cursor: not-allowed; }
-
   </style>
 </head>
 <body>
@@ -204,16 +171,7 @@
 
 <main>
 
-  <!-- Restart app -->
-  <div class="restart-card">
-    <div class="restart-info">
-      <h2>🔄 Restart App</h2>
-      <p>If the app is behaving oddly, tap to restart it. Takes about 2–3 seconds.</p>
-    </div>
-    <button class="btn-restart" id="restart-btn">Restart</button>
-  </div>
-
-    <!-- Add product -->
+  <!-- Add product -->
   <div class="card">
     <h2>Add Product</h2>
     <div class="form-row">
@@ -258,7 +216,7 @@
 
   async function loadProducts() {
     const res = await fetch('/api/products');
-    products = await res.json();
+    products  = await res.json();
     renderList();
     updateCatList();
     document.getElementById('product-count').textContent = products.length;
@@ -266,12 +224,12 @@
 
   function shelfLifeHours(value, unit) {
     if (unit === 'minutes') return value / 60;
-    if (unit === 'days') return value * 24;
+    if (unit === 'days')    return value * 24;
     return value;
   }
 
   function hoursToDisplay(h) {
-    if (h < 1) return `${Math.round(h * 60)} min`;
+    if (h < 1)  return `${Math.round(h * 60)} min`;
     if (h < 24) return `${h % 1 === 0 ? h : h.toFixed(1)} hr`;
     const d = h / 24;
     return `${d % 1 === 0 ? d : d.toFixed(1)} day${d !== 1 ? 's' : ''}`;
@@ -279,8 +237,7 @@
 
   function updateCatList() {
     const cats = [...new Set(products.map(p => p.category))].sort();
-    const dl = document.getElementById('cat-list');
-    dl.innerHTML = cats.map(c => `<option value="${c}">`).join('');
+    document.getElementById('cat-list').innerHTML = cats.map(c => `<option value="${c}">`).join('');
   }
 
   function renderList() {
@@ -325,12 +282,11 @@
         editForm.className = 'edit-form';
         editForm.id = `edit-${product.id}`;
 
-        // Determine display unit
-        const displayHours = product.shelf_life_hours;
+        const h = product.shelf_life_hours;
         let dispVal, dispUnit;
-        if (displayHours < 1) { dispVal = displayHours * 60; dispUnit = 'minutes'; }
-        else if (displayHours >= 24 && displayHours % 24 === 0) { dispVal = displayHours / 24; dispUnit = 'days'; }
-        else { dispVal = displayHours; dispUnit = 'hours'; }
+        if (h < 1)                          { dispVal = h * 60;  dispUnit = 'minutes'; }
+        else if (h >= 24 && h % 24 === 0)   { dispVal = h / 24;  dispUnit = 'days'; }
+        else                                 { dispVal = h;       dispUnit = 'hours'; }
 
         editForm.innerHTML = `
           <div class="form-row">
@@ -349,8 +305,8 @@
               <div class="shelf-row">
                 <input type="number" id="edit-shelf-val-${product.id}" value="${dispVal}" min="0.5" step="0.5" />
                 <select id="edit-shelf-unit-${product.id}">
-                  <option value="hours" ${dispUnit==='hours'?'selected':''}>Hours</option>
-                  <option value="days" ${dispUnit==='days'?'selected':''}>Days</option>
+                  <option value="hours"   ${dispUnit==='hours'  ?'selected':''}>Hours</option>
+                  <option value="days"    ${dispUnit==='days'   ?'selected':''}>Days</option>
                   <option value="minutes" ${dispUnit==='minutes'?'selected':''}>Minutes</option>
                 </select>
               </div>
@@ -358,7 +314,7 @@
           </div>
           <div style="display:flex;gap:8px">
             <button class="btn btn-primary" onclick="saveEdit(${product.id})">Save</button>
-            <button class="btn btn-ghost" onclick="toggleEdit(${product.id})">Cancel</button>
+            <button class="btn btn-ghost"   onclick="toggleEdit(${product.id})">Cancel</button>
           </div>
         `;
 
@@ -371,9 +327,8 @@
   }
 
   function toggleEdit(id, btn) {
-    const form = document.getElementById(`edit-${id}`);
+    const form   = document.getElementById(`edit-${id}`);
     const isOpen = form.classList.contains('open');
-    // Close all others
     document.querySelectorAll('.edit-form.open').forEach(f => f.classList.remove('open'));
     document.querySelectorAll('.btn-ghost[onclick^="toggleEdit"]').forEach(b => b.textContent = 'Edit');
     if (!isOpen) {
@@ -383,18 +338,17 @@
   }
 
   async function saveEdit(id) {
-    const name = document.getElementById(`edit-name-${id}`).value.trim();
-    const category = document.getElementById(`edit-cat-${id}`).value.trim();
-    const shelfVal = parseFloat(document.getElementById(`edit-shelf-val-${id}`).value);
-    const shelfUnit = document.getElementById(`edit-shelf-unit-${id}`).value;
+    const name       = document.getElementById(`edit-name-${id}`).value.trim();
+    const category   = document.getElementById(`edit-cat-${id}`).value.trim();
+    const shelfVal   = parseFloat(document.getElementById(`edit-shelf-val-${id}`).value);
+    const shelfUnit  = document.getElementById(`edit-shelf-unit-${id}`).value;
 
     if (!name || !shelfVal) return showToast('Name and shelf life required', true);
 
-    const shelf_life_hours = shelfLifeHours(shelfVal, shelfUnit);
     await fetch(`/api/products/${id}`, {
-      method: 'PUT',
+      method:  'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, category: category || 'General', shelf_life_hours })
+      body:    JSON.stringify({ name, category: category || 'General', shelf_life_hours: shelfLifeHours(shelfVal, shelfUnit) }),
     });
     showToast(`Saved: ${name}`);
     loadProducts();
@@ -410,27 +364,25 @@
 
   // Add product
   document.getElementById('add-btn').onclick = async () => {
-    const name = document.getElementById('new-name').value.trim();
-    const category = document.getElementById('new-category').value.trim();
-    const shelfVal = parseFloat(document.getElementById('new-shelf-value').value);
+    const name      = document.getElementById('new-name').value.trim();
+    const category  = document.getElementById('new-category').value.trim();
+    const shelfVal  = parseFloat(document.getElementById('new-shelf-value').value);
     const shelfUnit = document.getElementById('new-shelf-unit').value;
 
     if (!name || !shelfVal) return showToast('Name and shelf life required', true);
 
-    const shelf_life_hours = shelfLifeHours(shelfVal, shelfUnit);
     await fetch('/api/products', {
-      method: 'POST',
+      method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, category: category || 'General', shelf_life_hours })
+      body:    JSON.stringify({ name, category: category || 'General', shelf_life_hours: shelfLifeHours(shelfVal, shelfUnit) }),
     });
 
-    document.getElementById('new-name').value = '';
+    document.getElementById('new-name').value        = '';
     document.getElementById('new-shelf-value').value = '';
     showToast(`Added: ${name}`);
     loadProducts();
   };
 
-  // Allow Enter key on add form
   ['new-name', 'new-category', 'new-shelf-value'].forEach(id => {
     document.getElementById(id).addEventListener('keydown', e => {
       if (e.key === 'Enter') document.getElementById('add-btn').click();
@@ -442,7 +394,7 @@
   function showToast(msg, isError = false) {
     const t = document.getElementById('toast');
     t.textContent = msg;
-    t.className = isError ? 'error' : '';
+    t.className   = isError ? 'error' : '';
     void t.offsetWidth;
     t.classList.add('show');
     clearTimeout(toastTimer);
@@ -450,34 +402,6 @@
   }
 
   loadProducts();
-
-  // ---- Restart ----
-  document.getElementById('restart-btn').onclick = async () => {
-    const btn = document.getElementById('restart-btn');
-    if (!confirm('Restart the app? It will be back in a few seconds.')) return;
-    btn.disabled = true;
-    btn.textContent = 'Restarting…';
-    try {
-      await fetch('/api/restart', { method: 'POST' });
-    } catch (e) { /* expected — server goes down */ }
-    // Poll until it comes back
-    const poll = setInterval(async () => {
-      try {
-        await fetch('/api/products');
-        clearInterval(poll);
-        btn.disabled = false;
-        btn.textContent = 'Restart';
-        showToast('App restarted successfully');
-      } catch (e) { /* still coming back up */ }
-    }, 1000);
-    // Give up after 30s
-    setTimeout(() => {
-      clearInterval(poll);
-      btn.disabled = false;
-      btn.textContent = 'Restart';
-    }, 30000);
-  };
-
 </script>
 </body>
 </html>
