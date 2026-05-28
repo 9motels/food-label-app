@@ -1,6 +1,6 @@
-const { initDB } = require('../lib/db');
+import { initDB } from '../lib/db.js';
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   let client;
   try {
     client = await initDB();
@@ -36,4 +36,4 @@ module.exports = async function handler(req, res) {
   }
 
   return res.status(405).json({ error: 'Method not allowed' });
-};
+}

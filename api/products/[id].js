@@ -1,6 +1,6 @@
-const { initDB } = require('../../lib/db');
+import { initDB } from '../../lib/db.js';
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   let client;
   try {
     client = await initDB();
@@ -24,7 +24,7 @@ module.exports = async function handler(req, res) {
     return res.json({ success: true });
   }
 
-  // DELETE /api/products/:id — soft-delete (sets active = 0)
+  // DELETE /api/products/:id — soft-delete
   if (req.method === 'DELETE') {
     await client.execute({
       sql: 'UPDATE products SET active = 0 WHERE id = ?',
@@ -34,4 +34,4 @@ module.exports = async function handler(req, res) {
   }
 
   return res.status(405).json({ error: 'Method not allowed' });
-};
+}

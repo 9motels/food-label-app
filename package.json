@@ -2,10 +2,11 @@
   "name": "food-label-app",
   "version": "2.0.0",
   "description": "Food prep label printer — Vercel + Turso + Zebra Browser Print",
+  "type": "module",
   "scripts": {
     "dev": "vercel dev"
   },
   "dependencies": {
-    "@libsql/client": "^0.6.0"
+    "@libsql/client": "^0.17.2"
   }
 }
