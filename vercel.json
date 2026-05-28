@@ -1,3 +1,8 @@
 {
-  "outputDirectory": "public"
+  "version": 2,
+  "builds": [
+    { "src": "api/products/[id].js", "use": "@vercel/node" },
+    { "src": "api/products.js",      "use": "@vercel/node" },
+    { "src": "public/**",            "use": "@vercel/static" }
+  ]
 }
